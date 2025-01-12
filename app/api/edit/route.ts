@@ -84,11 +84,11 @@ function getNearestValidSize(width: number, height: number): { width: number; he
 
 export async function POST(req: Request) {
   try {
-    const { prompt, image, mask, width, height } = await req.json();
+    const { prompt, image, mask } = await req.json();
 
-    if (!prompt || !image || !mask || !width || !height) {
+    if (!prompt || !image || !mask) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields (prompt, image, mask, width, height)' }),
+        JSON.stringify({ error: 'Missing required fields (prompt, image, mask)' }),
         { 
           status: 400,
           headers: {
@@ -98,25 +98,17 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get valid dimensions that maintain aspect ratio as closely as possible
-    const validDimensions = getNearestValidSize(parseInt(width), parseInt(height));
-
     console.log('Processing request:', {
-      prompt,
-      originalDimensions: { width, height },
-      scaledDimensions: validDimensions
+      prompt
     });
 
     const prediction = await replicate.predictions.create({
-      version: "95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3",
+      version: "e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21180",
       input: {
-        prompt: `${prompt}, highly detailed, perfect quality`,
+        prompt: `${prompt}, highly detailed, perfect quality, 4k`,
         image: image,
         mask: mask,
-        width: validDimensions.width,
-        height: validDimensions.height,
-        num_inference_steps: 50,
-        scheduler: "K_EULER_ANCESTRAL",
+        num_inference_steps: 30,
         guidance_scale: 7.5,
         negative_prompt: "blurry, low quality, distorted, ugly, bad anatomy, bad proportions, watermark",
       },
