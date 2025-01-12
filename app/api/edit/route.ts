@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
 import { writeFile } from 'fs/promises';
 import path from 'path';
+import sharp from 'sharp';
 
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
@@ -82,6 +83,20 @@ function getNearestValidSize(width: number, height: number): { width: number; he
     : { width: nearestWidthFromHeight, height: nearestHeight };
 }
 
+// Function to get image dimensions from base64
+async function getImageDimensionsFromBase64(base64Image: string): Promise<{ width: number; height: number }> {
+  // Remove data URL prefix if present
+  const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const buffer = Buffer.from(base64Data, 'base64');
+  
+  // Get image metadata using sharp
+  const metadata = await sharp(buffer).metadata();
+  return {
+    width: metadata.width || 512,  // Default to 512 if width is undefined
+    height: metadata.height || 512  // Default to 512 if height is undefined
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const { prompt, image, mask } = await req.json();
@@ -98,18 +113,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // Get image dimensions from base64
+    const dimensions = await getImageDimensionsFromBase64(image);
+    const { width, height } = getNearestValidSize(dimensions.width, dimensions.height);
+
     console.log('Processing request:', {
-      prompt
+      prompt,
+      dimensions: { width, height }
     });
 
     const prediction = await replicate.predictions.create({
-      version: "e490d072a34a94a11e9711ed5a6ba621c3fab884eda1665d9d3a282d65a21180",
+      version: "95b7223104132402a9ae91cc677285bc5eb997834bd2349fa486f53910fd68b3",
       input: {
         prompt: `${prompt}, highly detailed, perfect quality, 4k`,
         image: image,
         mask: mask,
-        num_inference_steps: 30,
-        guidance_scale: 7.5,
+        width: width,
+        height: height,
+        num_inference_steps: 25,
         negative_prompt: "blurry, low quality, distorted, ugly, bad anatomy, bad proportions, watermark",
       },
     });
