@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import Replicate from 'replicate';
 import { writeFile } from 'fs/promises';
 import path from 'path';
-import sharp from 'sharp';
 
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
@@ -83,20 +82,6 @@ function getNearestValidSize(width: number, height: number): { width: number; he
     : { width: nearestWidthFromHeight, height: nearestHeight };
 }
 
-// Function to get image dimensions from base64
-async function getImageDimensionsFromBase64(base64Image: string): Promise<{ width: number; height: number }> {
-  // Remove data URL prefix if present
-  const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
-  const buffer = Buffer.from(base64Data, 'base64');
-  
-  // Get image metadata using sharp
-  const metadata = await sharp(buffer).metadata();
-  return {
-    width: metadata.width || 512,  // Default to 512 if width is undefined
-    height: metadata.height || 512  // Default to 512 if height is undefined
-  };
-}
-
 export async function POST(req: Request) {
   try {
     const { prompt, image, mask } = await req.json();
@@ -113,13 +98,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get image dimensions from base64
-    const dimensions = await getImageDimensionsFromBase64(image);
-    const { width, height } = getNearestValidSize(dimensions.width, dimensions.height);
-
     console.log('Processing request:', {
-      prompt,
-      dimensions: { width, height }
+      prompt
     });
 
     const prediction = await replicate.predictions.create({
@@ -128,8 +108,6 @@ export async function POST(req: Request) {
         prompt: `${prompt}, highly detailed, perfect quality, 4k`,
         image: image,
         mask: mask,
-        width: width,
-        height: height,
         num_inference_steps: 25,
         negative_prompt: "blurry, low quality, distorted, ugly, bad anatomy, bad proportions, watermark",
       },
